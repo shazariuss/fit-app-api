@@ -1,0 +1,356 @@
+openapi: 3.0.0
+info:
+  title: Fitness App API
+  description: API for a fitness app with user management, exercise/meal plans, and progress tracking.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string }
+        height: { type: number }
+        weight: { type: number }
+        age: { type: number }
+        goals: { type: string, enum: [weight_loss, muscle_gain, maintenance] }
+    Exercise:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [cardio, strength, flexibility] }
+        duration: { type: number }
+        sets: { type: number }
+        reps: { type: number }
+        goal: { type: string, enum: [weight_loss, muscle_gain, maintenance] }
+    Meal:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        calories: { type: number }
+        protein: { type: number }
+        carbs: { type: number }
+        fat: { type: number }
+        goal: { type: string, enum: [weight_loss, muscle_gain, maintenance] }
+    Progress:
+      type: object
+      properties:
+        id: { type: string }
+        user: { type: string }
+        type: { type: string, enum: [exercise, meal, weight] }
+        exercise: { $ref: '#/components/schemas/Exercise' }
+        meal: { $ref: '#/components/schemas/Meal' }
+        weight: { type: number }
+        date: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        msg: { type: string }
+        errors: { type: array, items: { type: object } }
+paths:
+  /api/auth/signup:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, example: 'test@example.com' }
+                password: { type: string, example: '123456' }
+                height: { type: number, example: 170 }
+                weight: { type: number, example: 70 }
+                age: { type: number, example: 30 }
+              required: [email, password]
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+        '400':
+          description: Validation error or user exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/auth/login:
+    post:
+      summary: Log in a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, example: 'test@example.com' }
+                password: { type: string, example: '123456' }
+              required: [email, password]
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/user/profile:
+    get:
+      summary: Get user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                height: { type: number, example: 175 }
+                weight: { type: number, example: 72 }
+                age: { type: number, example: 31 }
+                goals:
+                  {
+                    type: string,
+                    enum: [weight_loss, muscle_gain, maintenance],
+                    example: 'muscle_gain',
+                  }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/exercises/daily:
+    get:
+      summary: Get daily exercise plan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of daily exercises
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Exercise'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/exercises/seed:
+    post:
+      summary: Seed exercise data (for testing)
+      responses:
+        '200':
+          description: Exercises seeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+  /api/meals/daily:
+    get:
+      summary: Get daily meal plan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of daily meals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Meal'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/meals/seed:
+    post:
+      summary: Seed meal data (for testing)
+      responses:
+        '200':
+          description: Meals seeded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+  /api/progress/exercise:
+    post:
+      summary: Log a completed exercise
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                exerciseId:
+                  { type: string, example: '507f1f77bcf86cd799439011' }
+              required: [exerciseId]
+      responses:
+        '201':
+          description: Exercise logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Progress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/progress/meal:
+    post:
+      summary: Log a consumed meal
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mealId: { type: string, example: '507f1f77bcf86cd799439011' }
+              required: [mealId]
+      responses:
+        '201':
+          description: Meal logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Progress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/progress/weight:
+    post:
+      summary: Log a weight update
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weight: { type: number, example: 71.5 }
+              required: [weight]
+      responses:
+        '201':
+          description: Weight logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Progress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/progress:
+    get:
+      summary: Get progress history
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of progress entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Progress'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/protected:
+    get:
+      summary: Test protected route
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Protected route accessed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+                  userId: { type: string }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
